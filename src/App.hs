@@ -5,7 +5,8 @@
 {-# LANGUAGE TemplateHaskell            #-}
 
 module App (
-  getArgs
+  App
+, getArgs
 , isVerbose
 , runApp
 , tshow
