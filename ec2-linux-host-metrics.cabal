@@ -35,6 +35,7 @@ executable ec2-linux-host-metrics
                      , monad-logger
                      , monad-loops
                      , optparse-applicative
+                     , resourcet
                      , text
                      , transformers
                      , transformers-base
@@ -43,5 +44,4 @@ executable ec2-linux-host-metrics
 
   default-language:    Haskell2010
 
-  ghc-options:         -Wall -threaded
-
+  ghc-options:         -Wall -Wno-orphans -threaded
