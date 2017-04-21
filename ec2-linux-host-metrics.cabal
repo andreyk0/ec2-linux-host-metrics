@@ -1,0 +1,47 @@
+name:                ec2-linux-host-metrics
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/gilt/ec2-linux-host-metrics#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Andrey Kartashov
+maintainer:          akartashov@gilt.com
+copyright:           Copyright: (c) 2017 GILT GROUPE, INC.
+category:            CLI
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+executable ec2-linux-host-metrics
+  hs-source-dirs:      src
+
+  main-is:             Main.hs
+
+  other-modules:       Args
+                       App
+
+  build-depends:       base
+                     , aeson
+                     , amazonka
+                     , amazonka-cloudwatch
+                     , bytestring
+                     , conduit
+                     , conduit-extra
+                     , containers
+                     , exceptions
+                     , gitrev
+                     , monad-control
+                     , monad-logger
+                     , monad-loops
+                     , optparse-applicative
+                     , text
+                     , transformers
+                     , transformers-base
+                     , utf8-string
+
+
+  default-language:    Haskell2010
+
+  ghc-options:         -Wall -threaded
+
