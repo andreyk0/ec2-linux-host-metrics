@@ -6,29 +6,39 @@
 
 module App (
   App
+, InstanceID
 , getArgs
+, getInstanceID
 , isVerbose
 , runApp
 , tshow
 ) where
 
 import           Args
+import           Control.Lens
 import           Control.Monad
+import           Control.Monad.Base
 import           Control.Monad.Catch
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
+import           Control.Monad.Reader.Class
 import           Control.Monad.Trans.AWS
-import           Control.Monad.Trans.Reader
+import           Control.Monad.Trans.Reader hiding (ask)
 import           Control.Monad.Trans.Resource
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Development.GitRev
+import           Network.AWS.EC2.Metadata
 import           System.Exit
+
+
+type InstanceID = Text
 
 
 data AppState = AppState { asArgs :: !Args
                          , asAWSEnv :: !Env
+                         , asInstanceID :: !InstanceID
                          }
 
 
@@ -37,10 +47,13 @@ newtype App a =
       } deriving ( Applicative
                  , Functor
                  , Monad
+                 , MonadBase IO
                  , MonadCatch
                  , MonadIO
                  , MonadLogger
                  , MonadLoggerIO
+                 , MonadReader AppState
+                 , MonadResource
                  , MonadThrow
                  )
 
@@ -61,6 +74,9 @@ isVerbose = fmap argsVerbose getArgs
 getArgs :: App Args
 getArgs = App $ fmap asArgs ask
 
+getInstanceID :: App InstanceID
+getInstanceID = App $ fmap asInstanceID ask
+
 tshow :: (Show a) => a -> Text
 tshow = T.pack . show
 
@@ -74,8 +90,12 @@ runApp appA  = do
 
   env <- newEnv Discover
 
+  myID <- identity (env ^. envManager) >>= \idRes -> case idRes
+                                                       of Left e -> error $ "Unable to determine EC2 instance identity: " <> e
+                                                          Right iDoc -> return $ iDoc ^. instanceId
+
   let llf _ ll = argsVerbose || ll >= LevelInfo
-      appState = AppState args env
+      appState = AppState args env myID
 
   runStderrLoggingT $ filterLogger llf $
     runResourceT $ runAWST appState $

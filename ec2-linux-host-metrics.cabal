@@ -34,9 +34,11 @@ executable ec2-linux-host-metrics
                      , containers
                      , exceptions
                      , gitrev
+                     , lens
                      , monad-control
                      , monad-logger
                      , monad-loops
+                     , mtl
                      , optparse-applicative
                      , resourcet
                      , shell-conduit
@@ -71,6 +73,7 @@ test-suite test
                      , conduit
                      , conduit-extra
                      , exceptions
+                     , mtl
                      , shell-conduit
                      , test-framework
                      , test-framework-hunit
