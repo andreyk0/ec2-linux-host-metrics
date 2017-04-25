@@ -6,16 +6,20 @@
 
 module Main where
 
-import App
-import Args
-import Control.Lens
-import Control.Monad
-import Control.Monad.Logger
-import Control.Monad.Trans.AWS
-import Data.List.Split
-import Df
-import Network.AWS.CloudWatch
-import Types
+import           App
+import           Args
+import           Control.Lens
+import           Control.Monad
+import           Control.Monad.Logger
+import           Control.Monad.Trans.AWS
+import           Data.List.Split
+import qualified Data.Map.Strict as Map
+import           Data.Maybe
+import           Data.Monoid
+import           Df
+import           Meminfo
+import           Network.AWS.CloudWatch
+import           Types
 
 
 main:: IO ()
@@ -29,9 +33,15 @@ main = runApp $ do
   df <- diskFree
   $(logDebugSH) df
 
+  mem <- meminfo
+  $(logDebugSH) mem
+
   let dfMetrics = concat $ df <&> dfFsMetricData
+      memMetrics = memMetricData mem
+
       extraDimensions = dimension "InstanceId" myInstanceID : argsExtraDimensions -- added to all generated metrics
-      allMetrics = dfMetrics <&> mdDimensions %~ (++ extraDimensions)
+
+      allMetrics = (dfMetrics <> memMetrics) <&> mdDimensions %~ (<> extraDimensions)
 
 
   if argsPublishMetrics
@@ -58,5 +68,48 @@ dfFsMetricData DfFs{..} = [
 
   where dsUtil = let cap = if dffsCapacity == 0
                            then 1 -- to avoid /0
-                           else (fromIntegral dffsCapacity)
-                  in 100 * (fromIntegral dffsUsed) / cap
+                           else fromIntegral dffsCapacity
+                  in 100 * fromIntegral dffsUsed / cap
+
+
+memMetricData :: Meminfo
+              -> [MetricDatum]
+memMetricData mis =
+  let misMap = Map.fromList $ (\ mie@MeminfoEntry{..} -> (mieKey, mie)) <$> mis
+      meminfoEntry k = Map.lookup k misMap
+
+      memTotal = meminfoEntry "MemTotal"
+      memFree  = meminfoEntry "MemFree"
+      buffers  = meminfoEntry "Buffers"
+      cached   = meminfoEntry "Cached"
+
+      memAvailable = meminfoEntry "MemAvailable"
+
+      memUsed = do t <- mieVal <$> memTotal
+                   f <- mieVal <$> memFree
+                   b <- mieVal <$> buffers
+                   c <- mieVal <$> cached
+
+                   return $ MeminfoEntry "MemUsed" ( t - f - b - c ) -- MemTotal - (MemFree + Buffers + Cached)
+
+      memUsedPercent = do u <- mieVal <$> memUsed
+                          t <- mieVal <$> memTotal
+                          let t' = if t == 0 then 1 else t
+                          return $ 100 * (fromIntegral u) / (fromIntegral t')
+
+
+   in catMaybes [ -- report whatever entries we can find
+        memEntryBytesDatum <$> memTotal
+      , memEntryBytesDatum <$> memFree
+      , memEntryBytesDatum <$> memAvailable
+      , memEntryBytesDatum <$> memUsed
+      , memPercentDatum "MemUsedPercent" <$> memUsedPercent
+      ]
+
+  where memEntryBytesDatum MeminfoEntry{..} =
+          metricDatum mieKey & mdValue .~ (Just . fromIntegral) mieVal
+                             & mdUnit .~ Just Bytes
+
+        memPercentDatum k v =
+          metricDatum k & mdValue .~ Just v
+                        & mdUnit .~ Just Percent

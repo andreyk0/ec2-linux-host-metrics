@@ -40,8 +40,8 @@ parseArgs =
 
   where parseDimension = eitherReader $ \s ->
           case T.split (== '=') (T.pack s)
-            of n : v : [] -> Right $ dimension n v
-               _          -> Left $ "Failed to parse custom argument " <> s <> ", expected extra dimension in the name=value format"
+            of [n, v] -> Right $ dimension n v
+               _      -> Left $ "Failed to parse custom argument " <> s <> ", expected extra dimension in the name=value format"
 
 
 
