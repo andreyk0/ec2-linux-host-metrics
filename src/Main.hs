@@ -12,6 +12,7 @@ import Control.Lens
 import Control.Monad
 import Control.Monad.Logger
 import Control.Monad.Trans.AWS
+import Data.List.Split
 import Df
 import Network.AWS.CloudWatch
 import Types
@@ -29,13 +30,14 @@ main = runApp $ do
   $(logDebugSH) df
 
   let dfMetrics = concat $ df <&> dfFsMetricData
-      extraDimensions = [ dimension "InstanceId" myInstanceID ] -- added to all generated metrics
+      extraDimensions = dimension "InstanceId" myInstanceID : argsExtraDimensions -- added to all generated metrics
       allMetrics = dfMetrics <&> mdDimensions %~ (++ extraDimensions)
 
 
   if argsPublishMetrics
     then do $(logDebugSH) allMetrics
-            void . send $ putMetricData "System/Linux" & pmdMetricData .~ allMetrics
+            forM_ (chunksOf 20 allMetrics) $ \ms -> -- split into chunks to avoid hitting the call size limit
+                void . send $ putMetricData "System/Linux" & pmdMetricData .~ ms
 
     else forM_ allMetrics $(logInfoSH)
 
