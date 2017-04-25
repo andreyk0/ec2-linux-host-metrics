@@ -95,7 +95,7 @@ memMetricData mis =
       memUsedPercent = do u <- mieVal <$> memUsed
                           t <- mieVal <$> memTotal
                           let t' = if t == 0 then 1 else t
-                          return $ 100 * (fromIntegral u) / (fromIntegral t')
+                          return $ 100 * fromIntegral u / fromIntegral t'
 
 
    in catMaybes [ -- report whatever entries we can find
