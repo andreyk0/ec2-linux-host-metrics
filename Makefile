@@ -15,9 +15,7 @@ install:
 bindist:
 	mkdir -p $(TARGET)
 	stack --local-bin-path $(TARGET) install $(STACK_OPTS) ec2-linux-host-metrics
-	upx --best $(EXE)
 	mv $(EXE) $(DIST_EXE)
-	gpg --output $(DIST_EXE_SIG) --detach-sign $(DIST_EXE)
 
 test:
 	stack test
