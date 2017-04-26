@@ -10,6 +10,7 @@ import           App
 import           Args
 import           Control.Lens
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.Trans.AWS
 import           Data.Either
@@ -41,15 +42,18 @@ main = runApp $ do
 
   allDimensionlessMetrics <- collateResults [ dfMetrics, memMetrics, ntpMetrics ]
 
-  let extraDimensions = dimension "InstanceId" myInstanceID : argsExtraDimensions -- added to all generated metrics
-      allMetrics = allDimensionlessMetrics <&> mdDimensions %~ (<> extraDimensions)
+  let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
+
+      allExtraDimensions = [ dimension "InstanceId" myInstanceID ] : argsExtraDimensions -- sets of extra dimensions added to all generated metrics
+
+      allMetrics = concat $ metricsWithDimensions <$> allExtraDimensions
 
   if argsPublishMetrics
     then do $(logDebugSH) allMetrics
             forM_ (chunksOf 20 allMetrics) $ \ms -> -- split into chunks to avoid hitting the call size limit
                 void . send $ putMetricData "System/Linux" & pmdMetricData .~ ms
 
-    else forM_ allMetrics $(logInfoSH)
+    else forM_ allMetrics (liftIO . print)
 
 
 -- Handle results of metric collection actions that may have failed.

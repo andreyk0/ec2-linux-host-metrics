@@ -9,6 +9,10 @@ It also reports a namesake Ec2LinuxHostMetricsAgent metric with a `result` dimen
 counts of published metrics and execution errors.
 Execution errors should remain 0 at all times and should be alerted on in CW.
 
+Same metrics are published with different sets of dimensions to support different types of grouping
+in CloudWatch console. At the minimum one set of metrics is published with an `InstanceId` dimension
+to debug individual hosts. Additional groups of metric dimensions can be given on the command line.
+
 
 ```bash
 Publishes a few metrics about linux hosts to CloudWatch.

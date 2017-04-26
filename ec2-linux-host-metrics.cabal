@@ -29,6 +29,7 @@ executable ec2-linux-host-metrics
                      , aeson
                      , amazonka
                      , amazonka-cloudwatch
+                     , ansi-wl-pprint
                      , attoparsec
                      , bytestring
                      , conduit
