@@ -50,6 +50,13 @@ docker-haskell-platform-alpine make bindist
 
 # Examples
 
+To publish generated metrics use -p flag:
+```bash
+ec2-linux-host-metrics -p
+```
+
+To view what would be published:
+
 ```bash
 ec2-linux-host-metrics
 ```
