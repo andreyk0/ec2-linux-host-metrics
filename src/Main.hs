@@ -12,13 +12,16 @@ import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Logger
 import           Control.Monad.Trans.AWS
+import           Data.Either
 import           Data.List.Split
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import           Data.Monoid
+import qualified Data.Text as T
 import           Df
 import           Meminfo
 import           Network.AWS.CloudWatch
+import           Ntp
 import           Types
 
 
@@ -30,19 +33,16 @@ main = runApp $ do
   myInstanceID <- getInstanceID
   $(logDebugSH) myInstanceID
 
-  df <- diskFree
-  $(logDebugSH) df
+  dfMetrics <- diskFree <&> fmap dfMetricData
 
-  mem <- meminfo
-  $(logDebugSH) mem
+  memMetrics <- meminfo <&> fmap memMetricData
 
-  let dfMetrics = concat $ df <&> dfFsMetricData
-      memMetrics = memMetricData mem
+  ntpMetrics <- ntpQuery <&> fmap ntpMetricData
 
-      extraDimensions = dimension "InstanceId" myInstanceID : argsExtraDimensions -- added to all generated metrics
+  allDimensionlessMetrics <- collateResults [ dfMetrics, memMetrics, ntpMetrics ]
 
-      allMetrics = (dfMetrics <> memMetrics) <&> mdDimensions %~ (<> extraDimensions)
-
+  let extraDimensions = dimension "InstanceId" myInstanceID : argsExtraDimensions -- added to all generated metrics
+      allMetrics = allDimensionlessMetrics <&> mdDimensions %~ (<> extraDimensions)
 
   if argsPublishMetrics
     then do $(logDebugSH) allMetrics
@@ -51,6 +51,35 @@ main = runApp $ do
 
     else forM_ allMetrics $(logInfoSH)
 
+
+-- Handle results of metric collection actions that may have failed.
+-- Log and count errors, convert them to an error count metric.
+-- Pass successfully collected metrics through.
+collateResults :: [Either String [MetricDatum]]
+               -> App [MetricDatum]
+collateResults results = do
+  let (errs, metricResults) = partitionEithers results
+      allMetricResults = concat metricResults
+
+      agentMetricName = "Ec2LinuxHostMetricsAgent"
+
+      agentMetrics = [ metricDatum agentMetricName & mdValue .~ (Just . fromIntegral) (length allMetricResults)
+                                                   & mdUnit .~ Just Count
+                                                   & mdDimensions .~ [ dimension "result" "success" ]
+
+                     , metricDatum agentMetricName & mdValue .~ (Just . fromIntegral) (length errs)
+                                                   & mdUnit .~ Just Count
+                                                   & mdDimensions .~ [ dimension "result" "error" ]
+                     ]
+
+  forM_ errs $ \e -> $(logError) (T.pack e)
+
+  return $ agentMetrics <> allMetricResults
+
+
+dfMetricData :: Df
+             -> [MetricDatum]
+dfMetricData dfs = concat $ dfs <&> dfFsMetricData
 
 dfFsMetricData :: DfFs
                -> [MetricDatum]
@@ -113,3 +142,14 @@ memMetricData mis =
         memPercentDatum k v =
           metricDatum k & mdValue .~ Just v
                         & mdUnit .~ Just Percent
+
+
+ntpMetricData :: Ntp
+              -> [MetricDatum]
+ntpMetricData Ntp{..} = [
+    metricDatum "NtpOffset" & mdValue .~ Just ntpOffset
+                            & mdUnit .~ Just Milliseconds
+
+  , metricDatum "NtpJitter" & mdValue .~ Just ntpJitter
+                            & mdUnit .~ Just Milliseconds
+  ]

@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE TemplateHaskell    #-}
+
 
 module Meminfo (
   meminfo
@@ -7,9 +9,13 @@ module Meminfo (
 
 
 import           Control.Applicative
-import           Control.Monad.Catch
+import           Control.Monad
+import           Control.Monad.Catch (MonadCatch)
+import qualified Control.Monad.Catch as MC
+import           Control.Monad.Logger
 import           Control.Monad.Trans.Resource (MonadResource)
 import           Data.Attoparsec.Text as AT
+import           Data.Bifunctor
 import           Data.Conduit.Attoparsec
 import           Data.Conduit.Binary
 import           Data.Conduit.Shell
@@ -19,11 +25,13 @@ import           Data.Monoid
 import           Types
 
 
-meminfo :: (MonadCatch m, MonadResource m)
-        => m Meminfo
-meminfo =
-  catch ( sourceFile "/proc/meminfo" =$= CT.decode CT.utf8 $$ sinkParser parseMeminfo )
-        (\ (pe@ParseError{}) -> error $ "Unable to parse contents of /proc/meminfo: " <> show pe )
+meminfo :: (MonadCatch m, MonadResource m, MonadLogger m)
+        => m (Either String Meminfo)
+meminfo = do
+  res <- MC.try $ sourceFile "/proc/meminfo" =$= CT.decode CT.utf8 $$ sinkParser parseMeminfo
+  $(logDebugSH) res
+
+  return $ first (\ (MC.SomeException e) ->  "Unable to parse contents of /proc/meminfo: " <> show e) res
 
 
 -- Parses the linux's /proc/meminfo entries
@@ -32,7 +40,10 @@ parseMeminfo = do
   maybeEntries <- many1' $ ( Just          <$> parseMeminfoLine ) -- parse what we can
                        <|> ( const Nothing <$> consumeLine      ) -- skip the rest
 
-  return $ catMaybes maybeEntries
+  let res = catMaybes maybeEntries
+
+  when (null res) $ error "No meminfo results"
+  return res
 
   where consumeLine = (AT.takeWhile (not . isEndOfLine) <* endOfLine) <?> "skipLine"
 

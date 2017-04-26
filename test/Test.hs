@@ -8,6 +8,7 @@ import           Data.Attoparsec.Text
 import qualified Data.Text.IO as TIO
 import           Df
 import           Meminfo
+import           Ntp
 import           Test.Framework (defaultMain, testGroup)
 import           Test.Framework.Providers.HUnit
 import           Test.HUnit
@@ -20,12 +21,13 @@ tests = [
     testGroup "Parser" [
       testCase "parse df output 1" test_parseDfOutput1
     , testCase "parse meminfo output 1" test_parseMeminfoOutput1
+    , testCase "parse ntp offset from selected peer" test_parseNtpOffset1
     ]
   ]
 
 
 test_parseDfOutput1 = do
-  dfTxt <- TIO.readFile "data/eg-df-output1"
+  dfTxt <- TIO.readFile "data/df1"
   parseOnly parseDiskFree dfTxt @?= Right [ DfFs "devtmpfs"   "/dev"     2015020       92   2014928
                                           , DfFs "tmpfs"      "/dev/shm" 2023948        0   2023948
                                           , DfFs "/dev/xvda1" "/"        51473000 4941940  46430812
@@ -79,3 +81,8 @@ test_parseMeminfoOutput1 = do
     , MeminfoEntry "DirectMap4k"      12582912
     , MeminfoEntry "DirectMap2M"      4282384384
     ]
+
+
+test_parseNtpOffset1 = do
+  ntpqTxt <- TIO.readFile "data/ntpq1"
+  parseOnly parseNtpOffset ntpqTxt @?= Right (Ntp {ntpOffset = 1.064, ntpJitter = 0.299})

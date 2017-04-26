@@ -1,5 +1,14 @@
 # ec2-linux-host-metrics
+
 Publishes a few metrics about linux hosts to CloudWatch.
+At the moment we look at ntp offset, disk and memory utilization.
+Metrics are published under `System/Linux` CW namespace.
+Running without `-p` flag should just display a full list of metrics that would be published..
+
+It also reports a namesake Ec2LinuxHostMetricsAgent metric with a `result` dimension which captures
+counts of published metrics and execution errors.
+Execution errors should remain 0 at all times and should be alerted on in CW.
+
 
 ```bash
 Publishes a few metrics about linux hosts to CloudWatch.
