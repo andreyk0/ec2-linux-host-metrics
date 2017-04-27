@@ -148,12 +148,14 @@ memMetricData mis =
                         & mdUnit .~ Just Percent
 
 
+-- Reporting absolute values of offset/jitter,
+-- to make it easier to set up alerts around this.
 ntpMetricData :: Ntp
               -> [MetricDatum]
 ntpMetricData Ntp{..} = [
-    metricDatum "NtpOffset" & mdValue .~ Just ntpOffset
-                            & mdUnit .~ Just Milliseconds
+    metricDatum "NtpOffsetAbs" & mdValue .~ Just (abs ntpOffset)
+                               & mdUnit .~ Just Milliseconds
 
-  , metricDatum "NtpJitter" & mdValue .~ Just ntpJitter
-                            & mdUnit .~ Just Milliseconds
+  , metricDatum "NtpJitterAbs" & mdValue .~ Just (abs ntpJitter)
+                               & mdUnit .~ Just Milliseconds
   ]
