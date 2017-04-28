@@ -31,6 +31,8 @@ main = runApp $ do
   args@Args{..} <- getArgs
   $(logDebugSH) args
 
+  when (null argsDimensions) $ error "Please specify at least one dimension!"
+
   myInstanceID <- getInstanceID
   $(logDebugSH) myInstanceID
 
@@ -44,9 +46,12 @@ main = runApp $ do
 
   let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
 
-      allExtraDimensions = [ dimension "InstanceId" myInstanceID ] : argsExtraDimensions -- sets of extra dimensions added to all generated metrics
+      fillInInstanceID dim = dim & dValue %~ \v -> case v of "INSTANCE_ID" -> myInstanceID -- replace magic INSTANCE_ID value everywhere
+                                                             anyOther      -> anyOther
 
-      allMetrics = concat $ metricsWithDimensions <$> allExtraDimensions
+      allDimensions = argsDimensions <&> ( <&> fillInInstanceID )
+
+      allMetrics = concat $ metricsWithDimensions <$> allDimensions
 
   if argsPublishMetrics
     then do $(logDebugSH) allMetrics

@@ -17,7 +17,7 @@ import qualified Text.PrettyPrint.ANSI.Leijen as PP
 data Args = Args { argsVerbose :: !Bool
                  , argsVersion :: !Bool
                  , argsPublishMetrics :: !Bool
-                 , argsExtraDimensions :: ![[Dimension]]
+                 , argsDimensions :: ![[Dimension]]
                  } deriving (Show)
 
 
@@ -39,13 +39,13 @@ parseArgs =
                   ( long "metric-dimensions"
                  <> short 'd'
                  <> metavar "name=val[,name1=val1]"
-                 <> help "Extra dimension(s) to attach to all generated data." )
+                 <> help "Dimension(s) to attach to all generated data. A special value INSTANCE_ID will be replaced with an actual current instance ID." )
                 )
 
   where -- each dimension argument consists of one or more comma-separated name=val pairs
         -- e..g foo=bar,baz=blah
         parseDimensions = eitherReader $ \s ->
-          let err = Left $ "Failed to parse metric dimension " <> s <> ", expected extra dimension in the name=value format"
+          let err = Left $ "Failed to parse metric dimension " <> s <> ", expected dimension in the name=value format."
 
               parseDim txt = case T.split (== '=') txt
                                of [n, v] -> Right $ dimension n v
