@@ -69,6 +69,10 @@ parseCliArgs = execParser opts
     progDescDoc' =
       PP.text "Source: https://github.com/gilt/ec2-linux-host-metrics"
       PP.<+> PP.linebreak
-      PP.<$> PP.text "Each set of metrics will be published with InstanceId dimension."
+      PP.<$> PP.text "At least one set of dimensions is required. A special dimension value INSTANCE_ID will be replaced with an actual current instance ID."
       PP.<+> PP.linebreak
-      PP.<$> PP.text "In addition it'll be published once per each --metric-dimensions option value with dimensions specified by the option."
+      PP.<$> PP.text "Metrics will be published once per each given set of dimensions to support different levels of grouping."
+      PP.<+> PP.linebreak
+      PP.<$> PP.text "E.g. command:"
+      PP.<+> PP.linebreak
+      PP.<$> PP.text "\tec2-linux-host-metrics --publish-metrics --metric-dimensions my-app=test --metric-dimensions my-app=test,InstanceId=INSTANCE_ID"
