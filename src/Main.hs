@@ -8,6 +8,7 @@ module Main where
 
 import           App
 import           Args
+import           CPUInfo
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -20,6 +21,7 @@ import           Data.Maybe
 import           Data.Monoid
 import qualified Data.Text as T
 import           Df
+import           Loadavg
 import           Meminfo
 import           Network.AWS.CloudWatch
 import           Ntp
@@ -36,13 +38,18 @@ main = runApp $ do
   myInstanceID <- getInstanceID
   $(logDebugSH) myInstanceID
 
+  cpuS <- cpuinfoSummary
+  lAvg <- loadavg
+
+  let lAvgMetrics = loadAvgMetricData <$> cpuS <*> lAvg
+
   dfMetrics <- diskFree <&> fmap dfMetricData
 
   memMetrics <- meminfo <&> fmap memMetricData
 
   ntpMetrics <- ntpQuery <&> fmap ntpMetricData
 
-  allDimensionlessMetrics <- collateResults [ dfMetrics, memMetrics, ntpMetrics ]
+  allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics ]
 
   let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
 
@@ -164,3 +171,28 @@ ntpMetricData Ntp{..} = [
   , metricDatum "NtpJitterAbs" & mdValue .~ Just (abs ntpJitter)
                                & mdUnit .~ Just Milliseconds
   ]
+
+
+-- Loadavg adjusted by the number of CPU cores,
+-- to normalize output across nodes of different type
+loadAvgMetricData :: CPUInfoSummary
+                  -> Loadavg
+                  -> [MetricDatum]
+loadAvgMetricData CPUInfoSummary{..} Loadavg{..} = [
+    lavgCPUMetric lavgCPU1 "1"
+
+  , lavgCPUMetric lavgCPU5 "5"
+
+  , lavgCPUMetric lavgCPU10 "10"
+
+  , metricDatum "ProcessesRunning" & mdValue .~ Just (fromIntegral lavgProcRunning)
+                                   & mdUnit .~ Just Count
+
+  , metricDatum "ProcessesTotal"   & mdValue .~ Just (fromIntegral lavgProcTotal)
+                                   & mdUnit .~ Just Count
+  ]
+
+  where perCorePercent x = 100 * x / fromIntegral (if cpuisNumPhysCores == 0 then 1 else cpuisNumPhysCores)
+
+        lavgCPUMetric x n = metricDatum ("CPULoadAvgPerCore" <> n) & mdValue .~ Just (perCorePercent x)
+                                                                   & mdUnit .~ Just Percent

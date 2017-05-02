@@ -1,6 +1,10 @@
 module Types (
-  Df
+  CPUInfo
+, CPUInfoSection
+, CPUInfoSummary(..)
+, Df
 , DfFs(..)
+, Loadavg(..)
 , Meminfo
 , MeminfoEntry(..)
 , Ntp(..)
@@ -34,8 +38,31 @@ data MeminfoEntry =
                } deriving (Eq, Show)
 
 
+-- At the moment we only look at cpu info to count processor cores
+-- (to normalize other metrics across different hardware profiles)
+newtype CPUInfoSummary =
+  CPUInfoSummary { cpuisNumPhysCores :: Word16
+                 } deriving (Eq, Show)
+
+
+-- Results of parsing /proc/cpuinfo
+type CPUInfo = [CPUInfoSection]
+type CPUInfoSection = [CPUInfoEntry]
+type CPUInfoEntry = (Text, Text)
+
+
 -- Offset/jitter from the remote peer or server presently used as the primary reference
 data Ntp =
   Ntp { ntpOffset :: !Double -- ^ Mean offset (phase) in the times reported between this local host and the remote peer or server (RMS, milliseconds);
       , ntpJitter :: !Double -- ^ Mean deviation (jitter) in the time reported for that remote peer or server (RMS of difference of multiple time samples, milliseconds);
       } deriving (Eq, Show)
+
+
+-- Results of parsing /proc/loadavg
+data Loadavg =
+  Loadavg { lavgCPU1  :: !Double -- ^ 1 min load avg
+          , lavgCPU5  :: !Double -- ^ 5 min load avg
+          , lavgCPU10 :: !Double -- ^ 10 min load avg
+          , lavgProcRunning :: !Word64 -- ^ number of processes running
+          , lavgProcTotal:: !Word64 -- ^ total number of processes
+          } deriving (Eq, Show)

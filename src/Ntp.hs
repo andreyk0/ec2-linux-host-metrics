@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
 
 module Ntp (
   ntpQuery
@@ -8,28 +7,21 @@ module Ntp (
 
 
 import           Control.Monad.Catch (MonadCatch)
-import qualified Control.Monad.Catch as MC
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
+import           Control.Monad.Trans.Resource (MonadResource)
 import           Data.Attoparsec.Text
-import           Data.Bifunctor
 import           Data.Char
-import           Data.Conduit.Attoparsec
 import           Data.Conduit.Shell
-import qualified Data.Conduit.Text as CT
-import           Data.Monoid
+import           Parse
 import           Types
 
 
-ntpQuery :: (MonadCatch m, MonadIO m, MonadLogger m)
+ntpQuery :: (MonadCatch m, MonadIO m, MonadLogger m, MonadResource m)
          => m (Either String Ntp)
-ntpQuery = do
-  res <- MC.try $ liftIO $ run (proc "/usr/sbin/ntpq" ["-np"] $| conduit (CT.decode CT.utf8 =$= sinkParser parseNtpOffset))
-  $(logDebugSH) res
-
-  return $ first (\ (MC.SomeException e) -> "Can't parse 'primary reference' offset from the output of ntpq -np: [" <> show e <>
-                                        "], expected to find a line starting with a '*' character, this may mean that NTP server is down or there are connectivity issues!"
-                 ) res
+ntpQuery = parseShellCommandOutput parseNtpOffset
+                                   "/usr/sbin/ntpq (expected to find a line starting with a '*' character, this may mean that NTP server is down or there are connectivity issues)"
+                                   (proc "/usr/sbin/ntpq" ["-np"])
 
 
 -- Parses offset/jitter from the ntp server selected as a primary reference

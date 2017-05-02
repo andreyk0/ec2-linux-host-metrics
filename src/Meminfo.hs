@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TemplateHaskell    #-}
 
 
 module Meminfo (
@@ -11,27 +10,17 @@ module Meminfo (
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Catch (MonadCatch)
-import qualified Control.Monad.Catch as MC
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Resource (MonadResource)
 import           Data.Attoparsec.Text as AT
-import           Data.Bifunctor
-import           Data.Conduit.Attoparsec
-import           Data.Conduit.Binary
-import           Data.Conduit.Shell
-import qualified Data.Conduit.Text as CT
 import           Data.Maybe
-import           Data.Monoid
+import           Parse
 import           Types
 
 
 meminfo :: (MonadCatch m, MonadResource m, MonadLogger m)
         => m (Either String Meminfo)
-meminfo = do
-  res <- MC.try $ sourceFile "/proc/meminfo" =$= CT.decode CT.utf8 $$ sinkParser parseMeminfo
-  $(logDebugSH) res
-
-  return $ first (\ (MC.SomeException e) ->  "Unable to parse contents of /proc/meminfo: " <> show e) res
+meminfo = parseFile parseMeminfo "/proc/meminfo"
 
 
 -- Parses the linux's /proc/meminfo entries

@@ -20,9 +20,12 @@ executable ec2-linux-host-metrics
 
   other-modules:       Args
                        App
+                       CPUInfo
                        Df
+                       Loadavg
                        Meminfo
                        Ntp
+                       Parse
                        Types
 
   build-depends:       base
@@ -66,9 +69,12 @@ test-suite test
 
   other-modules:       Args
                        App
+                       CPUInfo
                        Df
+                       Loadavg
                        Meminfo
                        Ntp
+                       Parse
                        Types
 
   build-depends:       base
@@ -78,6 +84,7 @@ test-suite test
                      , bytestring
                      , conduit
                      , conduit-extra
+                     , containers
                      , exceptions
                      , monad-logger
                      , mtl

@@ -4,9 +4,11 @@
 module Main where
 
 
+import           CPUInfo
 import           Data.Attoparsec.Text
 import qualified Data.Text.IO as TIO
 import           Df
+import           Loadavg
 import           Meminfo
 import           Ntp
 import           Test.Framework (defaultMain, testGroup)
@@ -22,6 +24,9 @@ tests = [
       testCase "parse df output 1" test_parseDfOutput1
     , testCase "parse meminfo output 1" test_parseMeminfoOutput1
     , testCase "parse ntp offset from selected peer" test_parseNtpOffset1
+    , testCase "parse cpuinfo" test_parseCPUInfo1
+    , testCase "summarize cpuinfo" test_summarizeCPUInfo1
+    , testCase "parse loadavg" test_parseLoadavg1
     ]
   ]
 
@@ -86,3 +91,80 @@ test_parseMeminfoOutput1 = do
 test_parseNtpOffset1 = do
   ntpqTxt <- TIO.readFile "data/ntpq1"
   parseOnly parseNtpOffset ntpqTxt @?= Right (Ntp {ntpOffset = 1.064, ntpJitter = 0.299})
+
+
+test_parseCPUInfo1 = do
+  cpuiTxt <- TIO.readFile "data/cpuinfo1"
+  parseOnly parseCPUInfo cpuiTxt @?= Right [
+      [ ("processor","0")
+      , ("vendor_id","GenuineIntel")
+      , ("cpu family","6")
+      , ("model","63")
+      , ("model name","Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz")
+      , ("stepping","2")
+      , ("microcode","0x25")
+      , ("cpu MHz","2394.698")
+      , ("cache size","30720 KB")
+      , ("physical id","0")
+      , ("siblings","2")
+      , ("core id","0")
+      , ("cpu cores","2")
+      , ("apicid","0")
+      , ("initial apicid","0")
+      , ("fpu","yes")
+      , ("fpu_exception","yes")
+      , ("cpuid level","13")
+      , ("wp","yes")
+      , ("flags","fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx rdtscp lm constant_tsc rep_good nopl xtopology eagerfpu pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm fsgsbase bmi1 avx2 smep bmi2 erms invpcid xsaveopt")
+      , ("bugs","")
+      , ("bogomips","4789.07")
+      , ("clflush size","64")
+      , ("cache_alignment","64")
+      , ("address sizes","46 bits physical, 48 bits virtual")
+      , ("power management","")
+      ]
+    , [ ("processor","1")
+      , ("vendor_id","GenuineIntel")
+      , ("cpu family","6")
+      , ("model","63")
+      , ("model name","Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz")
+      , ("stepping","2")
+      , ("microcode","0x25")
+      , ("cpu MHz","2394.698")
+      , ("cache size","30720 KB")
+      , ("physical id","0")
+      , ("siblings","2")
+      , ("core id","1")
+      , ("cpu cores","2")
+      , ("apicid","2")
+      , ("initial apicid","2")
+      , ("fpu","yes")
+      , ("fpu_exception","yes")
+      , ("cpuid level","13")
+      , ("wp","yes")
+      , ("flags","fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx rdtscp lm constant_tsc rep_good nopl xtopology eagerfpu pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm fsgsbase bmi1 avx2 smep bmi2 erms invpcid xsaveopt")
+      , ("bugs","")
+      , ("bogomips","4848.29")
+      , ("clflush size","64")
+      , ("cache_alignment","64")
+      , ("address sizes","46 bits physical, 48 bits virtual")
+      ]
+    ]
+
+
+test_summarizeCPUInfo1 = do
+  cpuiTxt <- TIO.readFile "data/cpuinfo1"
+  let r = parseOnly parseCPUInfo cpuiTxt
+  (r >>= summarizeCPUInfo) @?= (Right $ CPUInfoSummary 2)
+
+
+test_parseLoadavg1 = do
+  loadavgTxt <- TIO.readFile "data/loadavg1"
+  parseOnly parseLoadavg loadavgTxt @?= Right (
+        Loadavg { lavgCPU1 = 0.49
+                , lavgCPU5 = 0.28
+                , lavgCPU10 = 0.21
+                , lavgProcRunning = 1
+                , lavgProcTotal = 172
+                }
+    )
