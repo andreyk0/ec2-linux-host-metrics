@@ -130,6 +130,14 @@ memMetricData mis =
 
       memAvailable = meminfoEntry "MemAvailable"
 
+      -- total memory, guarded against 0 just in case
+      memTotalValue = do mt <- mieVal <$> memTotal
+                         return $ fromIntegral $ if mt == 0 then 1 else mt
+
+      percentOfTotalMemory x = do x' <- mieVal <$> x
+                                  t  <- memTotalValue
+                                  return $ 100 * fromIntegral x' / t
+
       memUsed = do t <- mieVal <$> memTotal
                    f <- mieVal <$> memFree
                    b <- mieVal <$> buffers
@@ -137,18 +145,14 @@ memMetricData mis =
 
                    return $ MeminfoEntry "MemUsed" ( t - f - b - c ) -- MemTotal - (MemFree + Buffers + Cached)
 
-      memUsedPercent = do u <- mieVal <$> memUsed
-                          t <- mieVal <$> memTotal
-                          let t' = if t == 0 then 1 else t
-                          return $ 100 * fromIntegral u / fromIntegral t'
-
 
    in catMaybes [ -- report whatever entries we can find
         memEntryBytesDatum <$> memTotal
       , memEntryBytesDatum <$> memFree
       , memEntryBytesDatum <$> memAvailable
+      , memPercentDatum "MemAvailablePercent" <$> percentOfTotalMemory memAvailable
       , memEntryBytesDatum <$> memUsed
-      , memPercentDatum "MemUsedPercent" <$> memUsedPercent
+      , memPercentDatum "MemUsedPercent" <$> percentOfTotalMemory memUsed
       ]
 
   where memEntryBytesDatum MeminfoEntry{..} =
