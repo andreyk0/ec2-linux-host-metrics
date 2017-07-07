@@ -25,6 +25,7 @@ import           Loadavg
 import           Meminfo
 import           Network.AWS.CloudWatch
 import           Ntp
+import           Stat
 import           Types
 
 
@@ -49,7 +50,9 @@ main = runApp $ do
 
   ntpMetrics <- ntpQuery <&> fmap ntpMetricData
 
-  allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics ]
+  cpuStats <- statsSinceLastRun <&> fmap cpuStatsMetricData
+
+  allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics, cpuStats ]
 
   let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
 
@@ -200,3 +203,25 @@ loadAvgMetricData CPUInfoSummary{..} Loadavg{..} = [
 
         lavgCPUMetric x n = metricDatum ("CPULoadAvgPerCore" <> n) & mdValue .~ Just (perCorePercent x)
                                                                    & mdUnit .~ Just Percent
+
+
+
+-- CPU stats from /proc/stat since last run.
+-- No output on the first run, only diffs from last (saved) state are useful.
+-- https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
+cpuStatsMetricData :: (Maybe Stat, Stat)
+                   -> [MetricDatum]
+cpuStatsMetricData (Nothing, _) = []
+cpuStatsMetricData (Just sPrev, sCurr) = [
+    metricDatum "CPUUtilizationPercent" & mdValue .~ Just cpuUtilizationPercent
+                                        & mdUnit .~ Just Percent
+  ]
+
+  where idleTime Stat{..} = statCPUIdle + statCPUIOWait
+        nonIdleTime Stat{..} = statCPUUser + statCPUNice + statCPUSystem + statCPUIRQ + statCPUSoftIRQ + statCPUSteal
+        totalTime s = idleTime s + nonIdleTime s
+
+        totalTimeDiff = totalTime sCurr - totalTime sPrev
+        idleTimeDiff = idleTime sCurr - idleTime sPrev
+
+        cpuUtilizationPercent = 100 * fromIntegral (totalTimeDiff - idleTimeDiff) /  fromIntegral totalTimeDiff
