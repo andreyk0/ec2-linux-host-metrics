@@ -4,6 +4,7 @@
 module Main where
 
 
+
 import           CPUInfo
 import           Data.Attoparsec.Text
 import qualified Data.Text.IO as TIO
@@ -11,6 +12,7 @@ import           Df
 import           Loadavg
 import           Meminfo
 import           Ntp
+import           Stat
 import           Test.Framework (defaultMain, testGroup)
 import           Test.Framework.Providers.HUnit
 import           Test.HUnit
@@ -27,6 +29,7 @@ tests = [
     , testCase "parse cpuinfo" test_parseCPUInfo1
     , testCase "summarize cpuinfo" test_summarizeCPUInfo1
     , testCase "parse loadavg" test_parseLoadavg1
+    , testCase "parse stat" test_parseStat1
     ]
   ]
 
@@ -90,7 +93,7 @@ test_parseMeminfoOutput1 = do
 
 test_parseNtpOffset1 = do
   ntpqTxt <- TIO.readFile "data/ntpq1"
-  parseOnly parseNtpOffset ntpqTxt @?= Right (Ntp {ntpOffset = 1.064, ntpJitter = 0.299})
+  parseOnly parseNtpOffset ntpqTxt @?= Right Ntp {ntpOffset = 1.064, ntpJitter = 0.299}
 
 
 test_parseCPUInfo1 = do
@@ -160,11 +163,29 @@ test_summarizeCPUInfo1 = do
 
 test_parseLoadavg1 = do
   loadavgTxt <- TIO.readFile "data/loadavg1"
-  parseOnly parseLoadavg loadavgTxt @?= Right (
+  parseOnly parseLoadavg loadavgTxt @?= Right
         Loadavg { lavgCPU1 = 0.49
                 , lavgCPU5 = 0.28
                 , lavgCPU10 = 0.21
                 , lavgProcRunning = 1
                 , lavgProcTotal = 172
                 }
-    )
+
+
+test_parseStat1 = do
+  statTxt <- TIO.readFile "data/stat1"
+  parseOnly parseStat statTxt @?= Right
+        Stat { statCPUUser = 13477
+             , statCPUNice = 330
+             , statCPUSystem = 2323
+             , statCPUIdle = 69157680
+             , statCPUIOWait = 16418
+             , statCPUIRQ = 0
+             , statCPUSoftIRQ = 114
+             , statCPUSteal = 2254
+             , statCPUGuest = 1
+             , statCPUGuestNice = 2
+             , statIntr = 16080195
+             , statCtxt = 56244086
+             , statProcsCreated = 44862
+             }

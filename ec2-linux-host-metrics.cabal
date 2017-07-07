@@ -26,6 +26,7 @@ executable ec2-linux-host-metrics
                        Meminfo
                        Ntp
                        Parse
+                       Stat
                        Types
 
   build-depends:       base
@@ -38,6 +39,7 @@ executable ec2-linux-host-metrics
                      , conduit
                      , conduit-extra
                      , containers
+                     , directory
                      , exceptions
                      , gitrev
                      , lens
@@ -75,6 +77,7 @@ test-suite test
                        Meminfo
                        Ntp
                        Parse
+                       Stat
                        Types
 
   build-depends:       base
@@ -85,6 +88,7 @@ test-suite test
                      , conduit
                      , conduit-extra
                      , containers
+                     , directory
                      , exceptions
                      , monad-logger
                      , mtl

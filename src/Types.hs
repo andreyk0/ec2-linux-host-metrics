@@ -8,6 +8,7 @@ module Types (
 , Meminfo
 , MeminfoEntry(..)
 , Ntp(..)
+, Stat(..)
 ) where
 
 
@@ -66,3 +67,21 @@ data Loadavg =
           , lavgProcRunning :: !Word64 -- ^ number of processes running
           , lavgProcTotal:: !Word64 -- ^ total number of processes
           } deriving (Eq, Show)
+
+
+-- Results of parsing /proc/stat (https://www.kernel.org/doc/Documentation/filesystems/proc.txt)
+data Stat =
+  Stat { statCPUUser :: Word64
+       , statCPUNice :: Word64
+       , statCPUSystem :: Word64
+       , statCPUIdle :: Word64
+       , statCPUIOWait :: Word64
+       , statCPUIRQ :: Word64
+       , statCPUSoftIRQ :: Word64
+       , statCPUSteal :: Word64
+       , statCPUGuest :: Word64
+       , statCPUGuestNice :: Word64
+       , statIntr :: Word64
+       , statCtxt :: Word64
+       , statProcsCreated :: Word64
+       } deriving (Eq, Show)
