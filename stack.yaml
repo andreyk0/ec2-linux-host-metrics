@@ -38,7 +38,7 @@ resolver: lts-8.21
 packages:
   - '.'
   - location:
-      git: git@github.com:chrisdone/shell-conduit.git
+      git: https://github.com/psibi/shell-conduit.git
       commit: master
     extra-dep: true
 
