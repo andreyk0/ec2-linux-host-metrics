@@ -81,7 +81,7 @@ data Stat =
        , statCPUSteal :: Word64
        , statCPUGuest :: Word64
        , statCPUGuestNice :: Word64
-       , statIntr :: Word64
-       , statCtxt :: Word64
+       , statCPUIntr :: Word64
+       , statCPUCtxt :: Word64
        , statProcsCreated :: Word64
        } deriving (Eq, Show)

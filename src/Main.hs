@@ -213,8 +213,26 @@ cpuStatsMetricData :: (Maybe Stat, Stat)
                    -> [MetricDatum]
 cpuStatsMetricData (Nothing, _) = []
 cpuStatsMetricData (Just sPrev, sCurr) = [
-    metricDatum "CPUUtilizationPercent" & mdValue .~ Just cpuUtilizationPercent
-                                        & mdUnit .~ Just Percent
+    metricDatum "CPUUtilizationPercent"       & mdValue .~ Just cpuUtilizationPercent
+                                              & mdUnit .~ Just Percent
+
+  , metricDatum "CPUUtilizationUserPercent"   & mdValue .~ Just (cpuFieldPercentTotal statCPUUser)
+                                              & mdUnit .~ Just Percent
+
+  , metricDatum "CPUUtilizationNicePercent"   & mdValue .~ Just (cpuFieldPercentTotal statCPUNice)
+                                              & mdUnit .~ Just Percent
+
+  , metricDatum "CPUUtilizationSystemPercent" & mdValue .~ Just (cpuFieldPercentTotal statCPUSystem)
+                                              & mdUnit .~ Just Percent
+
+  , metricDatum "CPUInterrupts"               & mdValue .~ Just (fieldDiff statCPUIntr)
+                                              & mdUnit .~ Just Count
+
+  , metricDatum "CPUContextSwitches"          & mdValue .~ Just (fieldDiff statCPUCtxt)
+                                              & mdUnit .~ Just Count
+
+  , metricDatum "ProcessesCreated"            & mdValue .~ Just (fieldDiff statProcsCreated)
+                                              & mdUnit .~ Just Count
   ]
 
   where idleTime Stat{..} = statCPUIdle + statCPUIOWait
@@ -225,3 +243,6 @@ cpuStatsMetricData (Just sPrev, sCurr) = [
         idleTimeDiff = idleTime sCurr - idleTime sPrev
 
         cpuUtilizationPercent = 100 * fromIntegral (totalTimeDiff - idleTimeDiff) /  fromIntegral totalTimeDiff
+
+        fieldDiff f = fromIntegral $ f sCurr - f sPrev
+        cpuFieldPercentTotal f = 100 * fieldDiff f / fromIntegral totalTimeDiff

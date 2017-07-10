@@ -185,7 +185,7 @@ test_parseStat1 = do
              , statCPUSteal = 2254
              , statCPUGuest = 1
              , statCPUGuestNice = 2
-             , statIntr = 16080195
-             , statCtxt = 56244086
+             , statCPUIntr = 16080195
+             , statCPUCtxt = 56244086
              , statProcsCreated = 44862
              }
