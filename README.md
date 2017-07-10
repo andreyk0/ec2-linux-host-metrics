@@ -58,10 +58,17 @@ docker-haskell-platform-alpine make bindist
 
 You can run it periodically from a crontab:
 
-```cron
+```shell
+cat > /etc/cron.d/ec2-linux-host-metrics  <<_E_
 # Send host metrics every minute
-* * * * * root   /usr/local/bin/ec2-linux-host-metrics --publish-metrics --metric-dimensions my-service-name=test 2>&1 | /usr/bin/logger -t ec2-linux-host-metrics
+* * * * * root sleep $(($RANDOM % 10)) ; /usr/local/bin/ec2-linux-host-metrics --publish-metrics --metric-dimensions my-service-name=test 2>&1 | /usr/bin/logger -t ec2-linux-host-metrics
+_E_
+
+# Pick up new crontab
+/etc/init.d/crond reload
 ```
+
+Some random delay (but consistent between runs) is there to reduce herding effect.
 
 
 # Examples
@@ -77,16 +84,26 @@ To view what would be published:
 ec2-linux-host-metrics -d test=test,InstanceId=INSTANCE_ID
 ```
 
-generates something like
 
+Performance of the app itself:
 ```
 MetricDatum' {_mdValue = Just 22.0, _mdDimensions = Just [Dimension' {_dName = "result", _dValue = "success"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "Ec2LinuxHostMetricsAgent"}
 MetricDatum' {_mdValue = Just 0.0, _mdDimensions = Just [Dimension' {_dName = "result", _dValue = "error"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "Ec2LinuxHostMetricsAgent"}
+```
+
+Metrics derived from `/proc/loadavg`. Load numbers are normalized per core, numbers of running/total processes are absolute.
+```
 MetricDatum' {_mdValue = Just 14.000000000000002, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPULoadAvgPerCore1"}
 MetricDatum' {_mdValue = Just 21.5, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPULoadAvgPerCore5"}
 MetricDatum' {_mdValue = Just 10.5, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPULoadAvgPerCore10"}
 MetricDatum' {_mdValue = Just 1.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "ProcessesRunning"}
 MetricDatum' {_mdValue = Just 131.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "ProcessesTotal"}
+```
+See [understanding-load-averages](http://blog.scoutapp.com/articles/2009/07/31/understanding-load-averages)
+
+
+Output of `/bin/df -k -l -P`, by mountpoint:
+```
 MetricDatum' {_mdValue = Just 92.0, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/dev"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Kilobytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceUsed"}
 MetricDatum' {_mdValue = Just 2014928.0, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/dev"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Kilobytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceAvailable"}
 MetricDatum' {_mdValue = Just 4.565711506585543e-3, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/dev"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceUtilization"}
@@ -96,12 +113,36 @@ MetricDatum' {_mdValue = Just 0.0, _mdDimensions = Just [Dimension' {_dName = "M
 MetricDatum' {_mdValue = Just 4794620.0, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Kilobytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceUsed"}
 MetricDatum' {_mdValue = Just 4.6578132e7, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Kilobytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceAvailable"}
 MetricDatum' {_mdValue = Just 9.31482524818837, _mdDimensions = Just [Dimension' {_dName = "Mountpoint", _dValue = "/"},Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "DiskSpaceUtilization"}
+```
+
+
+Metrics derived from `/proc/meminfo`:
+```
 MetricDatum' {_mdValue = Just 4.1450496e9, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Bytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemTotal"}
 MetricDatum' {_mdValue = Just 1.090072576e9, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Bytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemFree"}
 MetricDatum' {_mdValue = Just 2.751766528e9, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Bytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemAvailable"}
 MetricDatum' {_mdValue = Just 66.38681785617234, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemAvailablePercent"}
 MetricDatum' {_mdValue = Just 1.439801344e9, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Bytes, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemUsed"}
 MetricDatum' {_mdValue = Just 34.73544306924578, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "MemUsedPercent"}
+```
+See [Interpreting /proc/meminfo ...](https://access.redhat.com/solutions/406773)
+
+
+NTP metrics derived from `/usr/sbin/ntpq -np`:
+```
 MetricDatum' {_mdValue = Just 1.865, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Milliseconds, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NtpOffsetAbs"}
 MetricDatum' {_mdValue = Just 0.879, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"},Dimension' {_dName = "InstanceId", _dValue = "i-01c15908108dd68f9"}], _mdUnit = Just Milliseconds, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NtpJitterAbs"}
+```
+
+
+CPU metrics (derived from `/proc/stat`) only show up on a second run (current /proc/stat values are diffed against previous ones saved to /tmp/ec2-linux-host-metrics-proc-stat each time it runs).
+The assumption is that it'll run from cron at a regular interval.
+```
+MetricDatum' {_mdValue = Just 0.8153281695882593, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUUtilizationPercent"}
+MetricDatum' {_mdValue = Just 0.6522625356706074, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUUtilizationUserPercent"}
+MetricDatum' {_mdValue = Just 0.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUUtilizationNicePercent"}
+MetricDatum' {_mdValue = Just 0.16306563391765186, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Percent, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUUtilizationSystemPercent"}
+MetricDatum' {_mdValue = Just 1289.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUInterrupts"}
+MetricDatum' {_mdValue = Just 3812.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUContextSwitches"}
+MetricDatum' {_mdValue = Just 22.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "ProcessesCreated"}
 ```
