@@ -20,7 +20,7 @@ bindist:
 	gpg --output $(DIST_EXE_SIG) --detach-sign $(DIST_EXE)
 
 test:
-	stack test
+	stack test --ghc-options='-rtsopts -with-rtsopts="-H1m -K1K"'
 
 clean:
 	stack clean

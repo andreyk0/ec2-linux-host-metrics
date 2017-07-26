@@ -7,11 +7,14 @@ module Types (
 , Loadavg(..)
 , Meminfo
 , MeminfoEntry(..)
+, NetStat(..)
+, NetStatLookup(..)
 , Ntp(..)
 , Stat(..)
 ) where
 
 
+import Data.Map.Strict (Map)
 import Data.Text (Text)
 import Data.Word
 
@@ -71,17 +74,42 @@ data Loadavg =
 
 -- Results of parsing /proc/stat (https://www.kernel.org/doc/Documentation/filesystems/proc.txt)
 data Stat =
-  Stat { statCPUUser :: Word64
-       , statCPUNice :: Word64
-       , statCPUSystem :: Word64
-       , statCPUIdle :: Word64
-       , statCPUIOWait :: Word64
-       , statCPUIRQ :: Word64
-       , statCPUSoftIRQ :: Word64
-       , statCPUSteal :: Word64
-       , statCPUGuest :: Word64
-       , statCPUGuestNice :: Word64
-       , statCPUIntr :: Word64
-       , statCPUCtxt :: Word64
-       , statProcsCreated :: Word64
+  Stat { statCPUUser :: !Word64
+       , statCPUNice :: !Word64
+       , statCPUSystem :: !Word64
+       , statCPUIdle :: !Word64
+       , statCPUIOWait :: !Word64
+       , statCPUIRQ :: !Word64
+       , statCPUSoftIRQ :: !Word64
+       , statCPUSteal :: !Word64
+       , statCPUGuest :: !Word64
+       , statCPUGuestNice :: !Word64
+       , statCPUIntr :: !Word64
+       , statCPUCtxt :: !Word64
+       , statProcsCreated :: !Word64
        } deriving (Eq, Show)
+
+
+-- Access results of parsing /proc/net/snmp
+data NetStatLookup =
+  NetStatLookup { netStatLookupIp  :: Text -> Maybe Integer
+                , netStatLookupTcp :: Text -> Maybe Integer
+                , netStatLookupUdp :: Text -> Maybe Integer
+                }
+
+instance Show NetStatLookup where
+  show _ = "NetStatLookup"
+
+
+-- Results of parsing /proc/net/snmp
+-- Fields are either signed or unsigned 64 bit ints,
+-- for convenience they are all treated as Integers
+-- to avoid keeping track of semantics of individual fields
+--
+--  https://www.ietf.org/rfc/rfc1213.txt
+--
+data NetStat =
+  NetStat { netStatIp  :: !(Map Text Integer)
+          , netStatTcp :: !(Map Text Integer)
+          , netStatUdp :: !(Map Text Integer)
+          } deriving (Eq, Show)

@@ -7,10 +7,12 @@ module Main where
 
 import           CPUInfo
 import           Data.Attoparsec.Text
+import qualified Data.Map.Strict as Map
 import qualified Data.Text.IO as TIO
 import           Df
 import           Loadavg
 import           Meminfo
+import           NetStat
 import           Ntp
 import           Stat
 import           Test.Framework (defaultMain, testGroup)
@@ -30,6 +32,7 @@ tests = [
     , testCase "summarize cpuinfo" test_summarizeCPUInfo1
     , testCase "parse loadavg" test_parseLoadavg1
     , testCase "parse stat" test_parseStat1
+    , testCase "parse snmp net stats" test_parseSNMPNetStats1
     ]
   ]
 
@@ -189,3 +192,56 @@ test_parseStat1 = do
              , statCPUCtxt = 56244086
              , statProcsCreated = 44862
              }
+
+
+test_parseSNMPNetStats1 = do
+  statTxt <- TIO.readFile "data/snmp1"
+  parseOnly parseNetStat statTxt @?= Right
+    NetStat { netStatIp = Map.fromList [ ("DefaultTTL",255)
+                                       , ("ForwDatagrams",18675692)
+                                       , ("Forwarding",1)
+                                       , ("FragCreates",0)
+                                       , ("FragFails",0)
+                                       , ("FragOKs",0)
+                                       , ("InAddrErrors",2)
+                                       , ("InDelivers",4895649)
+                                       , ("InDiscards",0)
+                                       , ("InHdrErrors",0)
+                                       , ("InReceives",23571343)
+                                       , ("InUnknownProtos",0)
+                                       , ("OutDiscards",0)
+                                       , ("OutNoRoutes",0)
+                                       , ("OutRequests",23586621)
+                                       , ("ReasmFails",0)
+                                       , ("ReasmOKs",0)
+                                       , ("ReasmReqds",0)
+                                       , ("ReasmTimeout",0)
+                                       ]
+
+            , netStatTcp = Map.fromList [ ("ActiveOpens",429421)
+                                        , ("AttemptFails",0)
+                                        , ("CurrEstab",3)
+                                        , ("EstabResets",62680)
+                                        , ("InCsumErrors",0)
+                                        , ("InErrs",0)
+                                        , ("InSegs",4164006)
+                                        , ("MaxConn",-1)
+                                        , ("OutRsts",77923)
+                                        , ("OutSegs",4734084)
+                                        , ("PassiveOpens",3)
+                                        , ("RetransSegs",60)
+                                        , ("RtoAlgorithm",1)
+                                        , ("RtoMax",120000)
+                                        , ("RtoMin",200)
+                                        ]
+
+            , netStatUdp = Map.fromList [ ("IgnoredMulti",0)
+                                        , ("InCsumErrors",0)
+                                        , ("InDatagrams",731623)
+                                        , ("InErrors",0)
+                                        , ("NoPorts",13)
+                                        , ("OutDatagrams",731721)
+                                        , ("RcvbufErrors",0)
+                                        , ("SndbufErrors",0)
+                                        ]
+            }

@@ -7,17 +7,12 @@ module Stat (
 ) where
 
 
-import           Control.Monad (join)
 import           Control.Monad.Catch (MonadCatch)
-import qualified Control.Monad.Catch as MC
 import           Control.Monad.IO.Class
 import           Control.Monad.Logger
 import           Control.Monad.Trans.Resource (MonadResource)
 import           Data.Attoparsec.Text as AT
-import           Data.Bifunctor
-import           Data.Monoid
-import           Parse
-import           System.Directory
+import           FileDiff
 import           Types
 
 
@@ -29,32 +24,7 @@ import           Types
 -- relative to last run.
 statsSinceLastRun :: (MonadCatch m, MonadResource m, MonadLogger m, MonadIO m)
                   => m (Either String (Maybe Stat, Stat))
-statsSinceLastRun = do
-  res <- MC.try tryToParse
-  fmap join $ return $ first (\ (MC.SomeException e) ->  "Unable to proc stat " <> show e) res
-
-  where tryToParse = do
-          let procStatFile = "/proc/stat"
-              tmpStatFile = "/tmp/ec2-linux-host-metrics-proc-stat"
-
-          hasPreviousStatFile <- liftIO $ doesFileExist tmpStatFile
-
-          previousState <- if hasPreviousStatFile
-                           then fmap Just <$> parseStatFile tmpStatFile
-                           else return $ Right Nothing
-
-          currentState <- parseStatFile procStatFile
-          liftIO $ copyFile procStatFile tmpStatFile -- save current version for the next run
-
-          return $ do prevS <- previousState
-                      curS <- currentState
-                      return (prevS, curS)
-
-
-parseStatFile :: (MonadCatch m, MonadResource m, MonadLogger m)
-              => FilePath
-              -> m (Either String Stat)
-parseStatFile = parseFile parseStat
+statsSinceLastRun = fileDiff "/proc/stat" parseStat
 
 
 -- Parses the linux's /proc/loadavg entries

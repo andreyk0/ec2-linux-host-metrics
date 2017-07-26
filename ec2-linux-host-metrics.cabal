@@ -22,8 +22,10 @@ executable ec2-linux-host-metrics
                        App
                        CPUInfo
                        Df
+                       FileDiff
                        Loadavg
                        Meminfo
+                       NetStat
                        Ntp
                        Parse
                        Stat
@@ -73,8 +75,10 @@ test-suite test
                        App
                        CPUInfo
                        Df
+                       FileDiff
                        Loadavg
                        Meminfo
+                       NetStat
                        Ntp
                        Parse
                        Stat

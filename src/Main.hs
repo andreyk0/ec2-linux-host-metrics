@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE RecordWildCards    #-}
 {-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE ViewPatterns       #-}
 
 
 module Main where
@@ -19,10 +20,12 @@ import           Data.List.Split
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import           Data.Monoid
+import           Data.Text (Text)
 import qualified Data.Text as T
 import           Df
 import           Loadavg
 import           Meminfo
+import           NetStat
 import           Network.AWS.CloudWatch
 import           Ntp
 import           Stat
@@ -52,7 +55,12 @@ main = runApp $ do
 
   cpuStats <- statsSinceLastRun <&> fmap cpuStatsMetricData
 
-  allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics, cpuStats ]
+  parsedNetStats <- netStatsSinceLastRun
+
+  let nsGauges = fmap (netStatGauges . netStatLookup . snd) parsedNetStats
+      nsCounterDiffs = fmap (netStatCounterDiffs . netStatDiffs) parsedNetStats
+
+  allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics, cpuStats, nsGauges, nsCounterDiffs ]
 
   let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
 
@@ -246,3 +254,82 @@ cpuStatsMetricData (Just sPrev, sCurr) = [
 
         fieldDiff f = fromIntegral $ f sCurr - f sPrev
         cpuFieldPercentTotal f = 100 * fieldDiff f / fromIntegral totalTimeDiff
+
+
+
+-- Generates metrics from the current values of gauge-like netstat fields.
+--  https://www.ietf.org/rfc/rfc1213.txt
+netStatGauges :: NetStatLookup
+              -> [MetricDatum]
+netStatGauges (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterMetric, _)) = catMaybes $ -- report whatever entries we can find
+  (nsIpCounterMetric <$> [
+    "ReasmTimeout"
+  ]) ++ (nsTcpCounterMetric <$> [
+    "CurrEstab"
+  ])
+
+
+-- Generates metrics from the previous/current state diffs of the counter-like netstat fields.
+--  https://www.ietf.org/rfc/rfc1213.txt
+-- Many fields will typically stay at 0, we only send metrics when they are non-0.
+netStatCounterDiffs :: NetStatLookup
+                    -> [MetricDatum]
+netStatCounterDiffs (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)) = catMaybes $ -- report whatever entries we can find
+  (nsIpCounterMetric <$> [
+    "ForwDatagrams"
+  , "FragCreates"
+  , "FragFails"
+  , "FragOKs"
+  , "InAddrErrors"
+  , "InDelivers"
+  , "InDiscards"
+  , "InHdrErrors"
+  , "InReceives"
+  , "InUnknownProtos"
+  , "OutDiscards"
+  , "OutNoRoutes"
+  , "OutRequests"
+  , "ReasmFails"
+  , "ReasmOKs"
+  , "ReasmReqds"
+  ]) ++ (nsTcpCounterMetric <$> [
+    "ActiveOpens"
+  , "AttemptFails"
+  , "EstabResets"
+  , "InCsumErrors"
+  , "InErrs"
+  , "InSegs"
+  , "OutRsts"
+  , "OutSegs"
+  , "PassiveOpens"
+  , "RetransSegs"
+  ]) ++ (nsUdpCounterMetric <$> [
+    "IgnoredMulti"
+  , "InCsumErrors"
+  , "InDatagrams"
+  , "InErrors"
+  , "NoPorts"
+  , "OutDatagrams"
+  , "RcvbufErrors"
+  , "SndbufErrors"
+  ])
+
+
+type NSMetricBuilder = Text -> Maybe MetricDatum
+
+netStatMetricsBuilders :: NetStatLookup
+                       -> (NSMetricBuilder, NSMetricBuilder, NSMetricBuilder)
+netStatMetricsBuilders NetStatLookup{..} = (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)
+
+  where nsIpCounterMetric  = netStatMetric "Ip" netStatLookupIp
+        nsTcpCounterMetric = netStatMetric "Tcp" netStatLookupTcp
+        nsUdpCounterMetric = netStatMetric "Udp" netStatLookupUdp
+
+        netStatMetric prefix lookupField fieldName =
+            nsDatum ("NetStat" <> prefix <> fieldName) <$> (lookupField fieldName >>= nonZero)
+
+        nsDatum n v = metricDatum n & mdValue .~ (Just . fromIntegral) v
+                                    & mdUnit .~ Just Count
+
+        nonZero x | x == 0    = Nothing
+                  | otherwise = Just x
