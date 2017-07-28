@@ -146,3 +146,17 @@ MetricDatum' {_mdValue = Just 1289.0, _mdDimensions = Just [Dimension' {_dName =
 MetricDatum' {_mdValue = Just 3812.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "CPUContextSwitches"}
 MetricDatum' {_mdValue = Just 22.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "ProcessesCreated"}
 ```
+
+
+Host network metrics from [/proc/net/snmp](https://www.ietf.org/rfc/rfc1213.txt), only non-0 fields are reported, gauges remain gauges, counters are diffed against previous run.
+```
+MetricDatum' {_mdValue = Just 1.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatTcpCurrEstab"}
+MetricDatum' {_mdValue = Just 120.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatIpInDelivers"}
+MetricDatum' {_mdValue = Just 120.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatIpInReceives"}
+MetricDatum' {_mdValue = Just 103.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatIpOutRequests"}
+MetricDatum' {_mdValue = Just 6.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatTcpActiveOpens"}
+MetricDatum' {_mdValue = Just 102.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatTcpInSegs"}
+MetricDatum' {_mdValue = Just 85.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatTcpOutSegs"}
+MetricDatum' {_mdValue = Just 18.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatUdpInDatagrams"}
+MetricDatum' {_mdValue = Just 18.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatUdpOutDatagrams"}
+```
