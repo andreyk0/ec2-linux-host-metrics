@@ -6,6 +6,7 @@ module NetStat (
   netStatsSinceLastRun
 , netStatDiffs
 , netStatLookup
+, parseNetSnmp
 , parseNetStat
 ) where
 
@@ -37,33 +38,54 @@ netStatDiffs :: (Maybe NetStat, NetStat)
 netStatDiffs (Nothing, _) = NetStatLookup (const Nothing) (const Nothing) (const Nothing)
 
 netStatDiffs (Just prevStats, currentStats) = NetStatLookup (diff netStatIp) (diff netStatTcp) (diff netStatUdp)
-  where diff field k = do pVal <- Map.lookup k (field prevStats)
-                          cVal <- Map.lookup k (field currentStats)
-                          return $ fromIntegral $ (fromIntegral cVal ::Word64) - (fromIntegral pVal :: Word64)
+  where diff field k =
+          do pVal <- Map.lookup k ((unNSCounter . field) prevStats)
+             cVal <- Map.lookup k ((unNSCounter . field) currentStats)
+             return $ fromIntegral $ (fromIntegral cVal ::Word64) - (fromIntegral pVal :: Word64)
 
 
 -- | Partially applied Map lookups
 netStatLookup :: NetStat
               -> NetStatLookup
 netStatLookup NetStat{..} = NetStatLookup (lookupWith netStatIp) (lookupWith netStatTcp) (lookupWith netStatUdp)
-  where lookupWith field k = Map.lookup k field
+  where lookupWith (NSCounter field) k = Map.lookup k field
 
 
 netStatsSinceLastRun :: (MonadCatch m, MonadResource m, MonadLogger m)
                      => m (Either String (Maybe NetStat, NetStat))
-netStatsSinceLastRun = fileDiff "/proc/net/snmp" parseNetStat
+netStatsSinceLastRun = do
+  eSnmp <- fileDiff "/proc/net/snmp" parseNetSnmp
+  eNetstat <- fileDiff "/proc/net/netstat" parseNetStat
+
+  return $ do snmp <- eSnmp
+              netstat <- eNetstat
+              return $ snmp <> netstat
 
 
 -- Parses the linux's /proc/net/snmp entries
+parseNetSnmp :: Parser NetStat
+parseNetSnmp = do
+  sectionStats <- parseSectionStats
+  NetStat <$> sectionStats "Ip" <*> sectionStats "Tcp" <*> sectionStats "Udp"
+
+
+-- Parses the linux's /proc/net/netstat entries
 parseNetStat :: Parser NetStat
 parseNetStat = do
+  sectionStats <- parseSectionStats
+  NetStat <$> sectionStats "IpExt" <*> sectionStats "TcpExt" <*> return mempty
+
+
+-- | Helper to parse named sections out of proc net files
+parseSectionStats :: (Monad m)
+                  => Parser (Text -> m NSCounter)
+parseSectionStats = do
   sections <- Map.fromList <$> many1' parseSection
 
   let sectionStats sn = case Map.lookup sn sections
                           of Nothing -> error $ "Can't find section " <> T.unpack sn
-                             Just x  -> return x
-
-  NetStat <$> sectionStats "Ip" <*> sectionStats "Tcp" <*> sectionStats "Udp"
+                             Just x  -> (return . NSCounter) x
+  return sectionStats
 
 
 -- | Parses one section into a section name and corresponding KV mappings
@@ -76,11 +98,10 @@ parseSection = do
   then return (sName1, Map.fromList (zip fNames fVals))
   else error $ "Section names don't match: " <> T.unpack sName1 <> " /= " <> T.unpack sName2
 
-
-parseLine :: (Show f) => Parser f -- ^ field parser
-          -> Parser (Text, [f]) -- ^ section name and a list of parsed fields
-parseLine fP = do
-  sectionName <- (takeWhile1 (/= ':') <* string ":") <?> "sectionName"
-  fields <- many1' (skipWhile isHorizontalSpace >> fP) <?> "fields"
-  _ <- endOfLine <?> "EOL"
-  return (sectionName, fields)
+  where parseLine :: (Show f) => Parser f -- ^ field parser
+                  -> Parser (Text, [f]) -- ^ section name and a list of parsed fields
+        parseLine fP = do
+          sectionName <- (takeWhile1 (/= ':') <* string ":") <?> "sectionName"
+          fields <- many1' (skipWhile isHorizontalSpace >> fP) <?> "fields"
+          _ <- endOfLine <?> "EOL"
+          return (sectionName, fields)

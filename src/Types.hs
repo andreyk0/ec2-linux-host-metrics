@@ -7,6 +7,7 @@ module Types (
 , Loadavg(..)
 , Meminfo
 , MeminfoEntry(..)
+, NSCounter(..)
 , NetStat(..)
 , NetStatLookup(..)
 , Ntp(..)
@@ -14,9 +15,10 @@ module Types (
 ) where
 
 
-import Data.Map.Strict (Map)
-import Data.Text (Text)
-import Data.Word
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import           Data.Text (Text)
+import           Data.Word
 
 
 -- All 'df' output
@@ -101,6 +103,16 @@ instance Show NetStatLookup where
   show _ = "NetStatLookup"
 
 
+newtype NSCounter =
+  NSCounter {
+    unNSCounter:: Map Text Integer
+  } deriving (Eq, Show)
+
+instance Monoid NSCounter where
+  mempty = NSCounter mempty
+  mappend (NSCounter c1) (NSCounter c2) = NSCounter $ Map.unionWith (+) c1 c2
+
+
 -- Results of parsing /proc/net/snmp
 -- Fields are either signed or unsigned 64 bit ints,
 -- for convenience they are all treated as Integers
@@ -109,7 +121,14 @@ instance Show NetStatLookup where
 --  https://www.ietf.org/rfc/rfc1213.txt
 --
 data NetStat =
-  NetStat { netStatIp  :: !(Map Text Integer)
-          , netStatTcp :: !(Map Text Integer)
-          , netStatUdp :: !(Map Text Integer)
+  NetStat { netStatIp  :: !NSCounter
+          , netStatTcp :: !NSCounter
+          , netStatUdp :: !NSCounter
           } deriving (Eq, Show)
+
+
+instance Monoid NetStat where
+  mempty = NetStat mempty mempty mempty
+
+  mappend ns1 ns2 = NetStat (af netStatIp) (af netStatTcp) (af netStatUdp)
+    where af f = f ns1 `mappend` f ns2
