@@ -160,3 +160,7 @@ MetricDatum' {_mdValue = Just 85.0, _mdDimensions = Just [Dimension' {_dName = "
 MetricDatum' {_mdValue = Just 18.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatUdpInDatagrams"}
 MetricDatum' {_mdValue = Just 18.0, _mdDimensions = Just [Dimension' {_dName = "test", _dValue = "test"}], _mdUnit = Just Count, _mdTimestamp = Nothing, _mdStatisticValues = Nothing, _mdMetricName = "NetStatUdpOutDatagrams"}
 ```
+
+
+Subset of metrics from [/proc/net/netstat](https://github.com/ecki/net-tools/blob/master/statistics.c).
+You can see which ones in [Main.hs](src/Main.hs). There's a lot there, so, to keep the CW costs down only non-0 values are published.
