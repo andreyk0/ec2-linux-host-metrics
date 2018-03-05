@@ -64,10 +64,11 @@ main = runApp $ do
 
   let metricsWithDimensions dims = allDimensionlessMetrics <&> mdDimensions %~ (<> dims) -- adds a set of extra dimensions to all metrics
 
-      fillInInstanceID dim = dim & dValue %~ \v -> case v of "INSTANCE_ID" -> myInstanceID -- replace magic INSTANCE_ID value everywhere
-                                                             anyOther      -> anyOther
+      fillInInstanceIDOrMountpoint dim = dim & dValue %~ \v -> case v of "INSTANCE_ID" -> myInstanceID -- replace magic INSTANCE_ID value everywhere
+                                                               case v of "MOUNTPOINT"  -> linkage to get dffsMountpoint
+                                                               anyOther      -> anyOther
 
-      allDimensions = argsDimensions <&> ( <&> fillInInstanceID )
+      allDimensions = argsDimensions <&> ( <&> fillInInstanceIDOrMountPoint)
 
       allMetrics = concat $ metricsWithDimensions <$> allDimensions
 
@@ -120,7 +121,7 @@ dfFsMetricData DfFs{..} = [
   , metricDatum "DiskSpaceUtilization" & mdValue .~ Just dsUtil
                                        & mdUnit .~ Just Percent
 
-  ] <&> mdDimensions %~ (dimension "Mountpoint" dffsMountpoint :)
+  ] <&> mdDimensions
 
   where dsUtil = let cap = if dffsCapacity == 0
                            then 1 -- to avoid /0
