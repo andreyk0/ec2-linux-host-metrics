@@ -42,23 +42,32 @@ main = runApp $ do
   myInstanceID <- getInstanceID
   $(logDebugSH) myInstanceID
 
-  cpuS <- cpuinfoSummary
-  lAvg <- loadavg
+  let gatherData cliFlag action = if cliFlag
+                                  then action
+                                  else pure $ Right []
 
-  let lAvgMetrics = loadAvgMetricData <$> cpuS <*> lAvg
+  lAvgMetrics <- gatherData argsCPU $ do
+    cpuS <- cpuinfoSummary
+    lAvg <- loadavg
+    pure $ loadAvgMetricData <$> cpuS <*> lAvg
 
-  dfMetrics <- diskFree <&> fmap dfMetricData
+  cpuStats <- gatherData argsCPU $ statsSinceLastRun <&> fmap cpuStatsMetricData
 
-  memMetrics <- meminfo <&> fmap memMetricData
+  memMetrics <- gatherData argsMemory $ meminfo <&> fmap memMetricData
 
-  ntpMetrics <- ntpQuery <&> fmap ntpMetricData
+  let filterMountPoints dfs = let mps = fromMaybe [] argsDisk
+                               in if null mps
+                                  then dfs
+                                  else filter (\ DfFs{..} -> elem dffsMountpoint mps ) dfs
 
-  cpuStats <- statsSinceLastRun <&> fmap cpuStatsMetricData
+  dfMetrics <- gatherData (isJust argsDisk) $ diskFree <&> fmap (dfMetricData . filterMountPoints)
+
+  ntpMetrics <- gatherData argsNTP $ ntpQuery <&> fmap ntpMetricData
 
   parsedNetStats <- netStatsSinceLastRun
 
-  let nsGauges = fmap (netStatGauges . netStatLookup . snd) parsedNetStats
-      nsCounterDiffs = fmap (netStatCounterDiffs . netStatDiffs) parsedNetStats
+  let nsGauges = fmap ((netStatGauges args) . netStatLookup . snd) parsedNetStats
+      nsCounterDiffs = fmap ((netStatCounterDiffs args) . netStatDiffs) parsedNetStats
 
   allDimensionlessMetrics <- collateResults [ lAvgMetrics, dfMetrics, memMetrics, ntpMetrics, cpuStats, nsGauges, nsCounterDiffs ]
 
@@ -259,9 +268,10 @@ cpuStatsMetricData (Just sPrev, sCurr) = [
 
 -- Generates metrics from the current values of gauge-like netstat fields.
 --  https://www.ietf.org/rfc/rfc1213.txt
-netStatGauges :: NetStatLookup
+netStatGauges :: Args
+              -> NetStatLookup
               -> [MetricDatum]
-netStatGauges (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterMetric, _)) = catMaybes $ -- report whatever entries we can find
+netStatGauges args (netStatMetricsBuilders args -> (nsIpCounterMetric, nsTcpCounterMetric, _)) = catMaybes $ -- report whatever entries we can find
   (nsIpCounterMetric <$> [
     "ReasmTimeout"
   ]) ++ (nsTcpCounterMetric <$> [
@@ -272,9 +282,10 @@ netStatGauges (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterMetric,
 -- Generates metrics from the previous/current state diffs of the counter-like netstat fields.
 --  https://www.ietf.org/rfc/rfc1213.txt
 -- Many fields will typically stay at 0, we only send metrics when they are non-0.
-netStatCounterDiffs :: NetStatLookup
+netStatCounterDiffs :: Args
+                    -> NetStatLookup
                     -> [MetricDatum]
-netStatCounterDiffs (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)) = catMaybes $ -- report whatever entries we can find
+netStatCounterDiffs args (netStatMetricsBuilders args -> (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)) = catMaybes $ -- report whatever entries we can find
   (nsIpCounterMetric <$> [
     "ForwDatagrams"
   , "FragCreates"
@@ -439,13 +450,19 @@ netStatCounterDiffs (netStatMetricsBuilders -> (nsIpCounterMetric, nsTcpCounterM
 
 type NSMetricBuilder = Text -> Maybe MetricDatum
 
-netStatMetricsBuilders :: NetStatLookup
+netStatMetricsBuilders :: Args
+                       -> NetStatLookup
                        -> (NSMetricBuilder, NSMetricBuilder, NSMetricBuilder)
-netStatMetricsBuilders NetStatLookup{..} = (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)
+netStatMetricsBuilders Args{..} NetStatLookup{..} = (nsIpCounterMetric, nsTcpCounterMetric, nsUdpCounterMetric)
 
-  where nsIpCounterMetric  = netStatMetric "Ip" netStatLookupIp
-        nsTcpCounterMetric = netStatMetric "Tcp" netStatLookupTcp
-        nsUdpCounterMetric = netStatMetric "Udp" netStatLookupUdp
+  where nsIpCounterMetric  = (mfilter (const argsNetIP))
+                             . (netStatMetric "Ip" netStatLookupIp)
+
+        nsTcpCounterMetric = (mfilter (const argsNetTCP))
+                             . (netStatMetric "Tcp" netStatLookupTcp)
+
+        nsUdpCounterMetric = (mfilter (const argsNetUDP))
+                             . (netStatMetric "Udp" netStatLookupUdp)
 
         netStatMetric prefix lookupField fieldName =
             nsDatum ("NetStat" <> prefix <> fieldName) <$> (lookupField fieldName >>= nonZero)

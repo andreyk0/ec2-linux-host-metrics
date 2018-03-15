@@ -2,9 +2,9 @@
 
 module Args (
   Args(..)
+, ArgMountPoint
 , parseCliArgs
 ) where
-
 
 import           Data.Either
 import           Data.Monoid
@@ -13,11 +13,19 @@ import           Network.AWS.CloudWatch.Types
 import           Options.Applicative
 import qualified Text.PrettyPrint.ANSI.Leijen as PP
 
+type ArgMountPoint = T.Text
 
 data Args = Args { argsVerbose :: !Bool
                  , argsVersion :: !Bool
                  , argsPublishMetrics :: !Bool
                  , argsDimensions :: ![[Dimension]]
+                 , argsCPU :: !Bool
+                 , argsMemory :: !Bool
+                 , argsDisk:: !(Maybe [ArgMountPoint])
+                 , argsNTP:: !Bool
+                 , argsNetIP:: !Bool
+                 , argsNetTCP:: !Bool
+                 , argsNetUDP:: !Bool
                  } deriving (Show)
 
 
@@ -41,6 +49,28 @@ parseArgs =
                  <> metavar "name=val[,name1=val1]"
                  <> help "Dimension(s) to attach to all generated data. A special value INSTANCE_ID will be replaced with an actual current instance ID." )
                 )
+       <*> switch
+           ( long "cpu"
+          <> help "Generate CPU metrics.")
+       <*> switch
+           ( long "memory"
+          <> help "Generate memory metrics.")
+       <*> optional (option parseMountPoints
+                      ( long "disk"
+                    <> metavar "/,/var,/data,..."
+                    <> help "Generate disk metrics for given mount points (or all if none specified, e.g. --disk=" ))
+       <*> switch
+           ( long "ntp"
+          <> help "Generate NTP drift metrics.")
+       <*> switch
+           ( long "net-ip"
+          <> help "Generate network IP metrics.")
+       <*> switch
+           ( long "net-tcp"
+          <> help "Generate network TCP metrics.")
+       <*> switch
+           ( long "net-udp"
+          <> help "Generate network UDP metrics.")
 
   where -- each dimension argument consists of one or more comma-separated name=val pairs
         -- e..g foo=bar,baz=blah
@@ -56,6 +86,9 @@ parseArgs =
                 []   -> err
                 txt -> let (es,ds) = partitionEithers $ parseDim <$> txt
                         in if null es then Right ds else err
+
+        parseMountPoints = eitherReader $ \s ->
+          Right <$> filter (not . T.null) $ T.split (== ',') (T.pack s)
 
 
 parseCliArgs :: IO Args
@@ -76,3 +109,5 @@ parseCliArgs = execParser opts
       PP.<$> PP.text "E.g. command:"
       PP.<+> PP.linebreak
       PP.<$> PP.text "\tec2-linux-host-metrics --publish-metrics --metric-dimensions my-app=test --metric-dimensions my-app=test,InstanceId=INSTANCE_ID"
+      PP.<+> PP.linebreak
+      PP.<$> PP.text "If none of the more specific options are given - all metrics are generated/published."

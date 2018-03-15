@@ -19,6 +19,8 @@ Publishes a few metrics about linux hosts to CloudWatch.
 Usage: ec2-linux-host-metrics [-v|--verbose] [-V|--version]
                               [-p|--publish-metrics]
                               [-d|--metric-dimensions name=val[,name1=val1]]
+                              [--cpu] [--memory] [--disk /,/var,/data,...]
+                              [--ntp] [--net-ip] [--net-tcp] [--net-udp]
 
 Available options:
   -h,--help                Show this help text
@@ -29,16 +31,26 @@ Available options:
                            Dimension(s) to attach to all generated data. A
                            special value INSTANCE_ID will be replaced with an
                            actual current instance ID.
+  --cpu                    Generate CPU metrics.
+  --memory                 Generate memory metrics.
+  --disk /,/var,/data,...  Generate disk metrics for given mount points (or all
+                           if none specified).
+  --ntp                    Generate NTP drift metrics.
+  --net-ip                 Generate network IP metrics.
+  --net-tcp                Generate network TCP metrics.
+  --net-udp                Generate network UDP metrics.
 
-Source: https://github.com/gilt/ec2-linux-host-metrics
+Source: https://github.com/gilt/ec2-linux-host-metrics 
 
-At least one set of dimensions is required. A special dimension value INSTANCE_ID will be replaced with an actual current instance ID.
+At least one set of dimensions is required. A special dimension value INSTANCE_ID will be replaced with an actual current instance ID. 
 
-Metrics will be published once per each given set of dimensions to support different levels of grouping.
+Metrics will be published once per each given set of dimensions to support different levels of grouping. 
 
-E.g. command:
+E.g. command: 
 
-	ec2-linux-host-metrics --publish-metrics --metric-dimensions my-app=test --metric-dimensions my-app=test,InstanceId=INSTANCE_ID
+	ec2-linux-host-metrics --publish-metrics --metric-dimensions my-app=test --metric-dimensions my-app=test,InstanceId=INSTANCE_ID 
+
+If none of the more specific options are given - all metrics are generated/published.
 ```
 
 # Building

@@ -25,13 +25,13 @@ import           Control.Monad.Reader.Class
 import           Control.Monad.Trans.AWS
 import           Control.Monad.Trans.Reader hiding (ask)
 import           Control.Monad.Trans.Resource
+import           Data.Maybe
 import           Data.Monoid
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Development.GitRev
 import           Network.AWS.EC2.Metadata
 import           System.Exit
-
 
 type InstanceID = Text
 
@@ -84,7 +84,26 @@ tshow = T.pack . show
 runApp :: App a
        -> IO a
 runApp appA  = do
-  args@Args{..} <- parseCliArgs
+  cliArgs@Args{..} <- parseCliArgs
+
+  -- if none of the more specific options are given - ask for all metrics by default
+  let args = if ( argsCPU
+               || argsMemory
+               || isJust argsDisk
+               || argsNTP
+               || argsNetIP
+               || argsNetTCP
+               || argsNetUDP
+                )
+             then cliArgs
+             else cliArgs { argsCPU = True
+                          , argsMemory = True
+                          , argsDisk = Just []
+                          , argsNTP = True
+                          , argsNetIP = True
+                          , argsNetTCP = True
+                          , argsNetUDP = True
+                          }
 
   when argsVersion $ die $ "Version: " <> $(gitBranch) <> "@" <> $(gitHash)
 
